@@ -1,0 +1,17 @@
+{
+  "login": {
+    "titulo": "Litecs Login",
+    "utilizador": "Username",
+    "senha": "Password",
+    "entrar": "Login",
+    "criarConta": "Create an account",
+    "esqueceu": "Forgot password?"
+  },
+  "definicoes": {
+    "titulo": "Settings",
+    "nome": "Name",
+    "email": "Email",
+    "idioma": "Language",
+    "guardar": "Save changes"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "login": {
+    "titulo": "Litecs Login",
+    "utilizador": "Nome de utilizador",
+    "senha": "Palavra-passe",
+    "entrar": "Entrar",
+    "criarConta": "Criar uma conta",
+    "esqueceu": "Esqueceu-se da palavra-passe?"
+  },
+  "definicoes": {
+    "titulo": "Definições",
+    "nome": "Nome",
+    "email": "Email",
+    "idioma": "Idioma",
+    "guardar": "Guardar alterações"
+  }
+}

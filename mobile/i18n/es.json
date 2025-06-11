@@ -1,0 +1,17 @@
+{
+  "login": {
+    "titulo": "Inicio de sesión Litecs",
+    "utilizador": "Nombre de usuario",
+    "senha": "Contraseña",
+    "entrar": "Iniciar sesión",
+    "criarConta": "Crear una cuenta",
+    "esqueceu": "¿Olvidó la contraseña?"
+  },
+  "definicoes": {
+    "titulo": "Ajustes",
+    "nome": "Nombre",
+    "email": "Correo electrónico",
+    "idioma": "Idioma",
+    "guardar": "Guardar cambios"
+  }
+}
