@@ -12,6 +12,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.utils.timezone import make_aware
+
+import io, json
+from django.db import transaction
+
 
 from .models import SensorData, Alerta, Localizacao, Profile
 from .serializers import (
@@ -196,97 +201,145 @@ def atualizar_definicoes(request):
         return Response({'status': 'ok'})
     except Exception as e:
         return Response({'erro': str(e)}, status=500)
-
-# === CSV (API COM BASE DE DADOS) ===
-def normalizar_nome(nome):
+    
+def normalizar_nome(nome: str) -> str:
     return (
-        nome.strip()
-        .lower()
-        .replace(" ", "")
-        .replace("(", "")
-        .replace(")", "")
-        .replace("%", "percent")
-        .replace("/", "")
+        nome.strip().lower()
+            .replace(" ", "")
+            .replace("(", "")
+            .replace(")", "")
+            .replace("%", "percent")
+            .replace("/", "")
     )
 
+# ───── parser CSV → (ts, dev, coluna_original, valor) ─────
+def _parse_csv_file(file_obj: io.TextIOBase):
+    reader = csv.DictReader(file_obj)
+    for row in reader:
+        try:
+            ts  = make_aware(datetime.fromtimestamp(int(row["Timestamp"])))
+            dev = row["DeviceID"].strip()
+        except (KeyError, ValueError):
+            continue
+        for col, txt in row.items():
+            if col in ("Timestamp", "DeviceID") or not (txt or "").strip():
+                continue
+            try:
+                val = float(txt)
+            except ValueError:
+                continue
+            yield ts, dev, col, val
+
+# ───── parser JSON → (ts, dev, coluna_original, valor) ─────
+def _parse_json_payload(payload):
+    if isinstance(payload, dict):
+        payload = [payload]
+    for item in payload:
+        try:
+            ts  = make_aware(datetime.fromtimestamp(int(item["timestamp"])))
+            dev = str(item["deviceid"]).strip()
+            data = item["data"]
+        except (KeyError, ValueError, TypeError):
+            continue
+        for col, raw in data.items():
+            try:
+                val = float(raw)
+            except (ValueError, TypeError):
+                continue
+            yield ts, dev, col, val
+
+# ───── bulk helper ─────
+def _buffer_bulk_create(buf):
+    if buf:
+        SensorData.objects.bulk_create(buf, ignore_conflicts=True)
+        buf.clear()
+
+# ───── view: upload_csv (CSV + JSON) ─────
 @csrf_exempt
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def upload_csv(request):
+    """
+    • body JSON (Content-Type: application/json)
+    • ficheiro .csv ou .json (multipart/form-data, campo 'ficheiro')
+    """
+    # 1) Extrair registos
     try:
-        ficheiro = request.FILES.get('ficheiro')
-        if not ficheiro:
-            return Response({'erro': 'Ficheiro não fornecido'}, status=400)
+        if request.content_type.startswith("application/json"):
+            registos = _parse_json_payload(request.data)
+        elif "ficheiro" in request.FILES:
+            raw = request.FILES["ficheiro"].read().decode("utf-8", errors="ignore")
+            if request.FILES["ficheiro"].name.lower().endswith(".json"):
+                registos = _parse_json_payload(json.loads(raw))
+            else:
+                registos = _parse_csv_file(io.StringIO(raw))
+        else:
+            return Response(
+                {"erro": "Envie body JSON ou ficheiro CSV/JSON no campo 'ficheiro'"},
+                status=400,
+            )
+    except (ValueError, json.JSONDecodeError):
+        return Response({"erro": "JSON mal-formado"}, status=400)
 
-        path = default_storage.save(f"csv_uploads/{ficheiro.name}", ficheiro)
+    # 2) Inserir em bulk
+    BULK, buf = 5000, []
+    with transaction.atomic():
+        for ts, dev, col, val in registos:
+            cat = normalizar_nome(col)
+            if SensorData.objects.filter(timestamp=ts, categoria=cat, deviceid=dev).exists():
+                continue
+            buf.append(
+                SensorData(
+                    timestamp=ts,
+                    deviceid=dev,
+                    categoria=cat,
+                    categoria_original=col,
+                    valor=val,
+                )
+            )
+            if len(buf) >= BULK:
+                _buffer_bulk_create(buf)
+        _buffer_bulk_create(buf)
 
-        with open(default_storage.path(path), 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
+    return Response({"mensagem": f"Importados {len(buf)} registos"})
 
-            for row in reader:
-                timestamp_segundos = int(row['Timestamp'])
-                timestamp = datetime.fromtimestamp(timestamp_segundos)
-                deviceid = row['DeviceID']
-
-                for coluna, valor_str in row.items():
-                    if coluna in ['Timestamp', 'DeviceID']:
-                        continue
-                    try:
-                        valor = float(valor_str)
-                    except:
-                        continue  # ignora valores não numéricos
-
-                    categoria = normalizar_nome(coluna)
-                    if not SensorData.objects.filter(timestamp=timestamp, categoria=categoria, deviceid=deviceid).exists():
-                        SensorData.objects.create(
-                            timestamp=timestamp,
-                            categoria=categoria,
-                            categoria_original=coluna,
-                            valor=valor,
-                            deviceid=deviceid
-                        )
-
-        return Response({'mensagem': 'CSV importado com sucesso.'})
-    except Exception as e:
-        logger.error(f"Erro ao importar CSV: {e}")
-        return Response({'erro': str(e)}, status=500)
-
-@api_view(['GET'])
+# ───── view: dados_por_categoria ─────
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def dados_por_categoria(request, categoria):
-    iddevice = request.GET.get('iddevice')
+    iddevice = request.GET.get("iddevice")
     if not iddevice:
-        return Response({'erro': 'ID do dispositivo é obrigatório'}, status=400)
+        return Response({"erro": "ID do dispositivo é obrigatório"}, status=400)
 
-    dados = SensorData.objects.filter(
-        deviceid=iddevice,
-        categoria=normalizar_nome(categoria)
-    ).order_by('timestamp')
-
-    resultado = [["timestamp", "valor"]]
-    for d in dados:
-        resultado.append([d.timestamp.strftime("%Y-%m-%d %H:%M:%S"), d.valor])
-
+    dados = (
+        SensorData.objects
+        .filter(deviceid=iddevice, categoria=normalizar_nome(categoria))
+        .order_by("timestamp")
+    )
+    resultado = [["timestamp", "valor"]] + [
+        [d.timestamp.strftime("%Y-%m-%d %H:%M:%S"), d.valor] for d in dados
+    ]
     return Response(resultado)
 
-@api_view(['GET'])
+# ───── view: listar_dispositivos ─────
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def listar_dispositivos(request):
-    dispositivos = SensorData.objects.values_list('deviceid', flat=True).distinct()
-    return Response(sorted(list(dispositivos)))
+    dispositivos = SensorData.objects.values_list("deviceid", flat=True).distinct()
+    return Response(sorted(dispositivos))
 
-@api_view(['GET'])
+# ───── view: categorias_por_dispositivo ─────
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def categorias_por_dispositivo(request):
-    iddevice = request.GET.get('iddevice')
+    iddevice = request.GET.get("iddevice")
     if not iddevice:
-        return Response({'erro': 'ID do dispositivo é obrigatório'}, status=400)
+        return Response({"erro": "ID do dispositivo é obrigatório"}, status=400)
 
     categorias = (
         SensorData.objects
         .filter(deviceid=iddevice)
-        .values_list('categoria_original', flat=True)
+        .values_list("categoria_original", flat=True)
         .distinct()
     )
-
     return Response(sorted(categorias))
