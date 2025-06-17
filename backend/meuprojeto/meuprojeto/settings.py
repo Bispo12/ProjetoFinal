@@ -25,7 +25,7 @@ DEBUG = env.bool('DJANGO_DEBUG', True)
 # Adicione o IP à lista de ALLOWED_HOSTS
 ALLOWED_HOSTS = env(
     'DJANGO_ALLOWED_HOSTS',
-    default='127.0.0.1,localhost,10.117.195.135,10.0.2.2,192.168.240.9,192.168.193.180,192.168.1.13'
+    default='127.0.0.1,localhost,10.117.195.135,10.0.2.2,192.168.240.9,192.168.193.180,192.168.1.13,192.168.187.180,192.168.173.180'
 ).split(',')
 
 

@@ -157,7 +157,7 @@ def enviar_push(token, titulo, corpo):
     if not token:
         return
     headers = {
-        'Authorization': 'Bearer SEU_TOKEN_DO_SERVIDOR_FCM',
+        'Authorization': 'Bearer BCzwRtu1st1JSw0lANrlY8LycfpXFvFqhJJsNq_U5D5jfXO18HcBj29IHpjsFdedn3RvnrnXAQAw6sVt-RAUV78',
         'Content-Type': 'application/json',
     }
     payload = {
@@ -222,31 +222,28 @@ def _parse_csv_file(file_obj: io.TextIOBase):
         except (KeyError, ValueError):
             continue
         for col, txt in row.items():
-            if col in ("Timestamp", "DeviceID") or not (txt or "").strip():
+            if col in ("Timestamp", "DeviceID","est") or not (txt or "").strip():
                 continue
             try:
                 val = float(txt)
             except ValueError:
                 continue
-            yield ts, dev, col, val
+            est = row.get("Est", "").strip()
+            yield ts, dev, col, val , est
 
-# ───── parser JSON → (ts, dev, coluna_original, valor) ─────
 def _parse_json_payload(payload):
     if isinstance(payload, dict):
         payload = [payload]
     for item in payload:
         try:
-            ts  = make_aware(datetime.fromtimestamp(int(item["timestamp"])))
-            dev = str(item["deviceid"]).strip()
-            data = item["data"]
+            ts = int(item["Timestamp"])
+            col = item["categoria_original"]
+            val = float(item["valor"])
+            dev = (item["device_id"])
+            est = int(item["estado"])
         except (KeyError, ValueError, TypeError):
             continue
-        for col, raw in data.items():
-            try:
-                val = float(raw)
-            except (ValueError, TypeError):
-                continue
-            yield ts, dev, col, val
+        yield ts, dev, col, val , est
 
 # ───── bulk helper ─────
 def _buffer_bulk_create(buf):
@@ -265,24 +262,32 @@ def upload_csv(request):
     """
     # 1) Extrair registos
     try:
+        print("entrou")
+        print("FILES:", request.FILES)
+        print("DATA:", request.data)
+        print("CONTENT-TYPE:", request.content_type)
+
+        print(object)
         if request.content_type.startswith("application/json"):
             registos = _parse_json_payload(request.data)
-        elif "ficheiro" in request.FILES:
-            raw = request.FILES["ficheiro"].read().decode("utf-8", errors="ignore")
-            if request.FILES["ficheiro"].name.lower().endswith(".json"):
+        elif "File" in request.FILES:
+            raw = request.FILES["File"].read().decode("utf-8", errors="ignore")
+            if request.FILES["File"].name.lower().endswith(".json"):
                 registos = _parse_json_payload(json.loads(raw))
+                print("aqui")
             else:
                 registos = _parse_csv_file(io.StringIO(raw))
+                print("csv")
         else:
             return Response(
-                {"erro": "Envie body JSON ou ficheiro CSV/JSON no campo 'ficheiro'"},
+                {"erro": "Envie body JSON ou File CSV/JSON no campo 'File'"},
                 status=400,
             )
     except (ValueError, json.JSONDecodeError):
         return Response({"erro": "JSON mal-formado"}, status=400)
 
     # 2) Inserir em bulk
-    BULK, buf = 5000, []
+    BULK, buf = 100000, []
     with transaction.atomic():
         for ts, dev, col, val in registos:
             cat = normalizar_nome(col)

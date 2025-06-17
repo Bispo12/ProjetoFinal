@@ -88,8 +88,8 @@ def _importar_json(ficheiro_json: str) -> None:
 
     for item in payload:
         try:
-            ts  = make_aware(datetime.fromtimestamp(int(item["timestamp"])))
-            dev = str(item["deviceid"]).strip()
+            ts  = make_aware(datetime.fromtimestamp(int(item["Timestamp"])))
+            dev = str(item["Deviceid"]).strip()
             dados = item["data"]
         except (KeyError, ValueError, TypeError):
             logger.warning("Registo JSON ignorado: %s", item)

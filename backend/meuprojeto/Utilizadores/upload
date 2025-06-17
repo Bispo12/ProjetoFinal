@@ -1,0 +1,8 @@
+import requests
+
+url = "http://127.0.0.1:8000/api/upload_csv/"
+files = {"File": open(r"C:\Users\joseb\Desktop\weather_data_2025-06-01.csv", "rb")}
+
+response = requests.post(url, files=files)
+print(response.status_code)
+print(response.json())

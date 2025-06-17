@@ -43,11 +43,12 @@ class Profile(models.Model):
         return f'Perfil de {self.user.username}'
 
 class SensorData(models.Model):
-    timestamp = models.DateTimeField()
+    timestamp = models.BigIntegerField()
     categoria = models.CharField(max_length=100)  # Nome normalizado
     categoria_original = models.CharField(max_length=100)  # Nome tal como está no CSV
     valor = models.FloatField()
     deviceid = models.CharField(max_length=100)
+    estado = models.SmallIntegerField ()
 
     def __str__(self):
         return f"{self.timestamp} - {self.categoria_original} ({self.deviceid}): {self.valor}"

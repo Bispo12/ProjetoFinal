@@ -65,7 +65,7 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
         setState(() {
           _notificacoes.insert(0, {
             'mensagem':
-                '⚠️ Alerta: $param ${direcao == 'acima' ? 'acima' : 'abaixo'} de $limiar (atual: $valorAtual)',
+                ' Alerta: $param ${direcao == 'acima' ? 'acima' : 'abaixo'} de $limiar (atual: $valorAtual)',
             'lida': false,
           });
         });
