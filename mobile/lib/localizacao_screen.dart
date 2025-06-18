@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'global.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class MapaLocalizacoesScreen extends StatefulWidget {
   final String accessToken;
@@ -123,7 +124,7 @@ class _MapaLocalizacoesScreenState extends State<MapaLocalizacoesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Mapa de Localizações'),
+        title: Text('mapa.titulo'.tr()),
         backgroundColor: Colors.green[700],
       ),
       body:

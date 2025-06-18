@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'global.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class NotificacoesScreen extends StatefulWidget {
   final String accessToken;
@@ -45,11 +46,7 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
   }
 
   void _verificarAlertasSimulados() {
-    Map<String, double> dadosAtuais = {
-      'temperatura': 37.5,
-      'glicose': 150.0,
-      'sono': 5.0,
-    };
+    Map<String, double> dadosAtuais = {'temperatura': 37.5};
 
     for (var alerta in _alertas) {
       final param = alerta['parametro'];
@@ -152,7 +149,7 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Notificações'),
+        title: Text('notificacoes.titulo'.tr()),
         backgroundColor: Colors.green[700],
         actions: [
           IconButton(

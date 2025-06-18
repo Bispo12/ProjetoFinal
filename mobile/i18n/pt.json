@@ -4,8 +4,7 @@
     "utilizador": "Nome de utilizador",
     "senha": "Palavra-passe",
     "entrar": "Entrar",
-    "criarConta": "Criar uma conta",
-    "esqueceu": "Esqueceu-se da palavra-passe?"
+    "criarConta": "Criar uma conta"
   },
   "definicoes": {
     "titulo": "Definições",
@@ -13,5 +12,28 @@
     "email": "Email",
     "idioma": "Idioma",
     "guardar": "Guardar alterações"
-  }
+  },
+  "menu": {
+    "dados": "Dados",
+    "localizacao": "Localização",
+    "notificacoes": "Notificações",
+    "definicoes": "Definições",
+    "logout": "Logout"
+  },
+  "home": {
+    "dados_natureza": "Dados da Natureza",
+    "selecionar_dispositivo": "Selecionar Dispositivo",
+    "selecionar_categoria": "Selecionar Categoria",
+    "visualizar_como": "Visualizar como",
+    "grafico_de": "Gráfico de {categoria}",
+    "selecione_dispositivo_categoria": "Selecione dispositivo e categoria",
+    "sem_dados": "Sem dados disponíveis.",
+    "sem_dados_grafico": "Sem dados para o gráfico."
+  },
+"notificacoes": {
+    "titulo": "Notificações"
+},
+"mapa": {
+    "titulo": "Mapa de Localizações"
+}
 }

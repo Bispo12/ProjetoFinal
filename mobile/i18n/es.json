@@ -1,11 +1,10 @@
 {
   "login": {
-    "titulo": "Inicio de sesión Litecs",
+    "titulo": "Litecs Login",
     "utilizador": "Nombre de usuario",
     "senha": "Contraseña",
     "entrar": "Iniciar sesión",
-    "criarConta": "Crear una cuenta",
-    "esqueceu": "¿Olvidó la contraseña?"
+    "criarConta": "Crear una cuenta"
   },
   "definicoes": {
     "titulo": "Ajustes",
@@ -13,5 +12,29 @@
     "email": "Correo electrónico",
     "idioma": "Idioma",
     "guardar": "Guardar cambios"
-  }
+  },
+  "menu": {
+    "dados": "Datos",
+    "localizacao": "Ubicación",
+    "notificacoes": "Notificaciones",
+    "definicoes": "Ajustes",
+    "logout": "Cerrar sesión"
+  },
+  "home": {
+    "dados_natureza": "Datos de la Naturaleza",
+    "selecionar_dispositivo": "Seleccionar dispositivo",
+    "selecionar_categoria": "Seleccionar categoría",
+    "visualizar_como": "Visualizar como",
+    "grafico_de": "Gráfico de {categoria}",
+    "selecione_dispositivo_categoria": "Seleccione dispositivo y categoría",
+    "sem_dados": "No hay datos disponibles.",
+    "sem_dados_grafico": "No hay datos para el gráfico."
+  },
+"notificacoes": {
+    "titulo": "Notificaciones"
+},
+"mapa": {
+    "titulo": "Mapa de Ubicaciones"
+}
+
 }

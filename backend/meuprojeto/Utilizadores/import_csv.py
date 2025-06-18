@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 CATEGORIAS_FIXAS = [
     "MaximumWindSpeed(kmh)", "WindSpeed(kmh)", "Precipitation(mm)",
     "Pressure(hPa)", "Temperature(C)", "Humidity(%)",
-    "Wind Direction", "Soil Mosture(%)",
+    "Wind Direction", "Soil Mosture(%)", "estado",
 ]
 
 # ------- helper p/ nomes limpos (se quiseres indexar/filtrar) --------
@@ -23,56 +23,49 @@ def normalizar_nome(nome: str) -> str:
     )
 
 # --------------------------------------------------------------------
-def importar_ficheiro_para_bd(caminho: str) -> None:
-    """
-    Aceita:
-      • ficheiro .csv  – mesmo formato de antes
-      • ficheiro .json – lista ou objecto único:
-          {
-            "timestamp": 1718216400,
-            "deviceid": "station01",
-            "data": { "Temperature(C)": 20.5, "Humidity(%)": 66.2, … }
-          }
-    """
-    ext = os.path.splitext(caminho)[1].lower()
+def importar_ficheiro_para_bd(ficheiro) -> None:
+    nome = ficheiro.name.lower()
 
-    if ext == ".csv":
-        _importar_csv(caminho)
-    elif ext == ".json":
-        _importar_json(caminho)
+    if nome.endswith(".csv"):
+        _importar_csv(ficheiro)
+    elif nome.endswith(".json"):
+        _importar_json(ficheiro)
     else:
         raise ValueError("Formato não suportado (usa .csv ou .json)")
-
 # ---------------------------- CSV -----------------------------------
-def _importar_csv(ficheiro_csv: str) -> None:
-    with open(ficheiro_csv, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
+def _importar_csv(ficheiro) -> None:
+    decoded = ficheiro.read().decode("utf-8").splitlines()
+    reader = csv.DictReader(decoded)
 
-        for row in reader:
+    for row in reader:
+        try:
+            ts = make_aware(datetime.fromtimestamp(int(row["Timestamp"])))
+            dev = row["DeviceID"]
+        except (KeyError, ValueError):
+            logger.warning("Linha CSV ignorada: %s", row)
+            continue
+
+        estado_atual = None
+        for cat in CATEGORIAS_FIXAS:
+            valor_txt = (row.get(cat) or "").strip()
+            if valor_txt == "":
+                continue
             try:
-                ts   = make_aware(datetime.fromtimestamp(int(row["Timestamp"])))
-                dev  = row["DeviceID"]
-            except (KeyError, ValueError):
-                logger.warning("Linha CSV ignorada: %s", row)
+                val = float(valor_txt)
+            except ValueError:
                 continue
 
-            # percorre só as categorias definidas
-            for cat in CATEGORIAS_FIXAS:
-                valor_txt = (row.get(cat) or "").strip()
-                if valor_txt == "":
-                    continue
-                try:
-                    val = float(valor_txt)
-                except ValueError:
-                    continue
+            if cat == "estado":
+                estado_atual = val
 
-                SensorData.objects.create(
-                    timestamp=ts,
-                    deviceid=dev,
-                    categoria=cat,
-                    categoria_original=cat,
-                    valor=val,
-                )
+            SensorData.objects.create(
+                timestamp=ts,
+                deviceid=dev,
+                categoria=cat,
+                categoria_original=cat,
+                valor=val,
+                estado=estado_atual
+            )
 
 # ---------------------------- JSON ----------------------------------
 def _importar_json(ficheiro_json: str) -> None:
@@ -110,5 +103,6 @@ def _importar_json(ficheiro_json: str) -> None:
                 categoria=cat,
                 categoria_original=cat,
                 valor=val,
+                estado=val if cat == "estado" else None
             )
 

@@ -4,8 +4,7 @@
     "utilizador": "Username",
     "senha": "Password",
     "entrar": "Login",
-    "criarConta": "Create an account",
-    "esqueceu": "Forgot password?"
+    "criarConta": "Create an account"
   },
   "definicoes": {
     "titulo": "Settings",
@@ -13,5 +12,29 @@
     "email": "Email",
     "idioma": "Language",
     "guardar": "Save changes"
-  }
+  },
+  "menu": {
+    "dados": "Data",
+    "localizacao": "Location",
+    "notificacoes": "Notifications",
+    "definicoes": "Settings",
+    "logout": "Logout"
+  },
+  "home": {
+    "dados_natureza": "Nature Data",
+    "selecionar_dispositivo": "Select Device",
+    "selecionar_categoria": "Select Category",
+    "visualizar_como": "View as",
+    "grafico_de": "Chart of {categoria}",
+    "selecione_dispositivo_categoria": "Select device and category",
+    "sem_dados": "No data available.",
+    "sem_dados_grafico": "No data for the chart."
+  },
+"notificacoes": {
+    "titulo": "Notifications"
+},
+"mapa": {
+    "titulo": "Location Map"
+}
+
 }

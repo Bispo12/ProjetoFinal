@@ -217,19 +217,19 @@ def _parse_csv_file(file_obj: io.TextIOBase):
     reader = csv.DictReader(file_obj)
     for row in reader:
         try:
-            ts  = make_aware(datetime.fromtimestamp(int(row["Timestamp"])))
+            ts  = row["Timestamp"].strip ()
             dev = row["DeviceID"].strip()
         except (KeyError, ValueError):
             continue
         for col, txt in row.items():
-            if col in ("Timestamp", "DeviceID","est") or not (txt or "").strip():
+            if col in ("Timestamp", "DeviceID",) or not (txt or "").strip():
                 continue
             try:
                 val = float(txt)
             except ValueError:
                 continue
-            est = row.get("Est", "").strip()
-            yield ts, dev, col, val , est
+            est = val if col == "estado" else None
+            yield ts, dev, col, val ,est
 
 def _parse_json_payload(payload):
     if isinstance(payload, dict):
@@ -240,7 +240,7 @@ def _parse_json_payload(payload):
             col = item["categoria_original"]
             val = float(item["valor"])
             dev = (item["device_id"])
-            est = int(item["estado"])
+            est = float(item["estado"]) if "estado" in item else (val if col == "estado" else None)
         except (KeyError, ValueError, TypeError):
             continue
         yield ts, dev, col, val , est
@@ -256,27 +256,21 @@ def _buffer_bulk_create(buf):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def upload_csv(request):
-    """
-    • body JSON (Content-Type: application/json)
-    • ficheiro .csv ou .json (multipart/form-data, campo 'ficheiro')
-    """
-    # 1) Extrair registos
     try:
         print("entrou")
         print("FILES:", request.FILES)
         print("DATA:", request.data)
         print("CONTENT-TYPE:", request.content_type)
 
-        print(object)
         if request.content_type.startswith("application/json"):
             registos = _parse_json_payload(request.data)
         elif "File" in request.FILES:
             raw = request.FILES["File"].read().decode("utf-8", errors="ignore")
             if request.FILES["File"].name.lower().endswith(".json"):
-                registos = _parse_json_payload(json.loads(raw))
+                registos = list(_parse_json_payload(json.loads(raw)))
                 print("aqui")
             else:
-                registos = _parse_csv_file(io.StringIO(raw))
+                registos = list(_parse_csv_file(io.StringIO(raw)))
                 print("csv")
         else:
             return Response(
@@ -286,12 +280,27 @@ def upload_csv(request):
     except (ValueError, json.JSONDecodeError):
         return Response({"erro": "JSON mal-formado"}, status=400)
 
-    # 2) Inserir em bulk
-    BULK, buf = 100000, []
+    # 2) Inserir em bulk com verificação prévia de duplicados
+    BULK, buf = 1000, []
+
+    # Obter tuplos únicos do CSV
+    chaves_csv = set((ts, normalizar_nome(col), dev) for ts, dev, col, val, est in registos)
+
+    # Buscar os existentes na base de dados
+    existentes = set(
+        SensorData.objects
+        .filter(
+            timestamp__in=[ts for ts, _, _ in chaves_csv],
+            deviceid__in=[dev for _, _, dev in chaves_csv]
+        )
+        .values_list("timestamp", "categoria", "deviceid")
+    )
+
+    # Inserir os novos
     with transaction.atomic():
-        for ts, dev, col, val in registos:
+        for ts, dev, col, val, est in registos:
             cat = normalizar_nome(col)
-            if SensorData.objects.filter(timestamp=ts, categoria=cat, deviceid=dev).exists():
+            if (ts, cat, dev) in existentes:
                 continue
             buf.append(
                 SensorData(
@@ -303,8 +312,12 @@ def upload_csv(request):
                 )
             )
             if len(buf) >= BULK:
-                _buffer_bulk_create(buf)
-        _buffer_bulk_create(buf)
+                SensorData.objects.bulk_create(buf)
+                buf = []  # limpar buffer
+        if buf:
+            SensorData.objects.bulk_create(buf)
+
+    return Response({"mensagem": f"Importação concluída com sucesso."})
 
     return Response({"mensagem": f"Importados {len(buf)} registos"})
 
@@ -322,7 +335,8 @@ def dados_por_categoria(request, categoria):
         .order_by("timestamp")
     )
     resultado = [["timestamp", "valor"]] + [
-        [d.timestamp.strftime("%Y-%m-%d %H:%M:%S"), d.valor] for d in dados
+    [datetime.fromtimestamp(d.timestamp).strftime("%Y-%m-%d %H:%M:%S"), d.valor]
+    for d in dados
     ]
     return Response(resultado)
 

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'user_provider.dart';
 import 'global.dart';
@@ -164,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dados da Natureza'),
+        title: Text('home.dados_natureza'.tr()),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
       ),
@@ -181,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     if (_errorMessage.isNotEmpty) _buildErrorBanner(),
                     _buildDropdown(
-                      label: 'Selecionar Dispositivo',
+                      label: 'home.selecionar_dispositivo'.tr(),
                       value: _selectedDevice,
                       items: _availableDevices,
                       onChanged: (v) {
@@ -193,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     _buildDropdown(
-                      label: 'Selecionar Categoria',
+                      label: 'home.selecionar_categoria'.tr(),
                       value: _selectedCategory,
                       items: _availableCategories,
                       onChanged: (v) {
@@ -207,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     _buildDropdown(
-                      label: 'Visualizar como',
+                      label: 'home.visualizar_como'.tr(),
                       value: _selectedView,
                       items: _availableViews,
                       onChanged:
@@ -299,21 +300,24 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(color: Colors.green.shade700),
             currentAccountPicture: CircleAvatar(
               backgroundImage:
-                  (user.fotoPath != null && user.fotoPath!.isNotEmpty)
+                  (user.fotoPath != null &&
+                          user.fotoPath!.isNotEmpty &&
+                          File(user.fotoPath!).existsSync())
                       ? FileImage(File(user.fotoPath!))
                       : const AssetImage('imagens/perfil.jpg') as ImageProvider,
             ),
             accountName: Text(user.nome),
-            accountEmail: Text(user.email),
+            accountEmail: const SizedBox.shrink(),
           ),
+
           ListTile(
             leading: const Icon(Icons.bar_chart),
-            title: const Text('Dados'),
+            title: Text('menu.dados'.tr()),
             onTap: () => Navigator.pop(context),
           ),
           ListTile(
             leading: const Icon(Icons.location_on),
-            title: const Text('Localização'),
+            title: Text('menu.localizacao'.tr()),
             onTap:
                 () => Navigator.push(
                   context,
@@ -327,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.notifications),
-            title: const Text('Notificações'),
+            title: Text('menu.notificacoes'.tr()),
             onTap: () {
               if (_selectedDevice == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -351,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.settings),
-            title: const Text('Definições'),
+            title: Text('menu.definicoes'.tr()),
             onTap:
                 () => Navigator.push(
                   context,
@@ -364,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
+            title: Text('menu.logout'.tr()),
             onTap: _logout,
           ),
         ],
@@ -377,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        'Gráfico de $_selectedCategory',
+        'home.grafico_de'.tr(namedArgs: {'categoria': _selectedCategory ?? ''}),
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
       ),
       const SizedBox(height: 10),
@@ -404,8 +408,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (idx == -1) idx = 1;
 
+    // Limita a 500 linhas visíveis na tabela para não pesar UI
     final rows =
-        data.skip(1).map((row) {
+        data.skip(1).take(500).map((row) {
           final ts = row.isNotEmpty ? row[0].toString() : '';
           final val = idx < row.length ? row[idx].toString() : '';
           return DataRow(cells: [DataCell(Text(ts)), DataCell(Text(val))]);
@@ -433,83 +438,136 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Center(child: Text('Sem dados para o gráfico.'));
     }
 
-    // coluna da categoria
     final header = data.first;
     var idx = header.indexWhere(
       (h) => h.toString().trim().toLowerCase() == key.trim().toLowerCase(),
     );
     if (idx == -1) idx = 1;
 
-    // pontos
-    final spots = <FlSpot>[
-      for (var i = 0; i < data.length - 1; i++)
-        FlSpot(i.toDouble(), double.tryParse(data[i + 1][idx].toString()) ?? 0),
-    ];
-    if (spots.isEmpty) return const SizedBox.shrink();
+    double _limiteMaximo(String cat) {
+      final nome = cat.toLowerCase();
+      if (nome.contains('humidity')) return 100.0;
+      if (nome.contains('temperature')) return 60.0;
+      if (nome.contains('pressure')) return 1100.0;
+      if (nome.contains('precipitation')) return 500.0;
+      return double.infinity;
+    }
 
-    // escala e intervalos (≥1)
-    final yMax = math.max(1.0, spots.map((e) => e.y).reduce(math.max) * 1.1);
-    final horizInterval = math.max(1.0, yMax / 5);
-    final vertInterval = math.max(1.0, (spots.length / 5).ceilToDouble());
+    final limiteY = _limiteMaximo(key);
+
+    // Guardar timestamps
+    final rawSpots = <FlSpot>[];
+    final timestamps = <double, String>{};
+    for (var i = 0; i < data.length - 1; i++) {
+      final row = data[i + 1];
+      final val = double.tryParse(row[idx].toString());
+      if (val != null && val >= 0 && val <= limiteY) {
+        final x = i.toDouble();
+        rawSpots.add(FlSpot(x, val));
+        timestamps[x] = row[0].toString(); // timestamp na coluna 0
+      }
+    }
+
+    if (rawSpots.isEmpty) {
+      return const Center(child: Text('Sem dados válidos para o gráfico.'));
+    }
+
+    // Limitar número de pontos (auto ajustável)
+    int maxPontosVisiveis;
+    if (rawSpots.length > 20000) {
+      maxPontosVisiveis = 100;
+    } else if (rawSpots.length > 10000) {
+      maxPontosVisiveis = 150;
+    } else if (rawSpots.length > 5000) {
+      maxPontosVisiveis = 200;
+    } else {
+      maxPontosVisiveis = 300;
+    }
+
+    final passo = (rawSpots.length / maxPontosVisiveis).ceil();
+
+    final spots = <FlSpot>[
+      for (var i = 0; i < rawSpots.length; i += passo) rawSpots[i],
+    ];
+
+    final yMaxRaw = spots.map((e) => e.y).reduce(math.max);
+    final yMinRaw = spots.map((e) => e.y).reduce(math.min);
+    final padding = (yMaxRaw - yMinRaw).abs() * 0.1;
+    final minY = (yMinRaw - padding).clamp(0.0, double.infinity);
+    final maxY = math.min((yMaxRaw + padding), limiteY);
+
+    final horizInterval = math.max(1.0, (maxY - minY) / 5);
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: LineChart(
-        LineChartData(
-          minX: 0,
-          maxX: spots.length.toDouble() - 1,
-          minY: 0,
-          maxY: yMax,
-          gridData: FlGridData(
-            show: true,
-            horizontalInterval: horizInterval,
-            verticalInterval: vertInterval,
-            getDrawingHorizontalLine:
-                (v) => FlLine(color: Colors.grey.shade300, strokeWidth: 1),
-            getDrawingVerticalLine:
-                (v) => FlLine(color: Colors.grey.shade300, strokeWidth: 1),
-          ),
-          borderData: FlBorderData(show: true),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(showTitles: true, reservedSize: 40),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 30,
-                interval: vertInterval,
-                getTitlesWidget: (value, meta) {
-                  final i = value.toInt();
-                  if (i < 0 || i >= spots.length)
-                    return const SizedBox.shrink();
+      child: SizedBox(
+        height: 350,
+        child: LineChart(
+          LineChartData(
+            minX: spots.first.x,
+            maxX: spots.last.x,
+            minY: minY,
+            maxY: maxY,
+            gridData: FlGridData(show: true, horizontalInterval: horizInterval),
+            borderData: FlBorderData(show: true),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 60,
+                  getTitlesWidget: (value, meta) {
+                    final first = spots.first.x;
+                    final last = spots.last.x;
+                    final mid = first + (last - first) / 2;
 
-                  final show =
-                      i == 0 || i == spots.length ~/ 2 || i == spots.length - 1;
-                  return show
-                      ? SideTitleWidget(
-                        meta: meta,
+                    if ((value - first).abs() < 1e-3 ||
+                        (value - mid).abs() < 1e-3 ||
+                        (value - last).abs() < 1e-3) {
+                      final ts = timestamps[value] ?? '';
+                      final partes = ts.split(' ');
+                      return Transform.rotate(
                         angle: math.pi / 4,
-                        space: 4,
                         child: Text(
-                          i.toString(),
+                          partes.length == 2 ? partes[1] : ts,
                           style: const TextStyle(fontSize: 10),
                         ),
-                      )
-                      : const SizedBox.shrink();
+                      );
+                    } else {
+                      return const SizedBox.shrink();
+                    }
+                  },
+                ),
+              ),
+            ),
+            lineTouchData: LineTouchData(
+              enabled: true,
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipItems: (touchedSpots) {
+                  return touchedSpots.map((spot) {
+                    final ts = timestamps[spot.x] ?? '';
+                    return LineTooltipItem(
+                      '$ts\nValor: ${spot.y.toStringAsFixed(1)}',
+                      const TextStyle(fontSize: 12, color: Colors.black),
+                    );
+                  }).toList();
                 },
               ),
             ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: spots,
+                isCurved: false,
+                barWidth: 2,
+                color: Colors.blue,
+                dotData: FlDotData(show: true),
+                showingIndicators: List.generate(spots.length, (i) => i),
+                belowBarData: BarAreaData(show: false),
+              ),
+            ],
           ),
-          lineBarsData: [
-            LineChartBarData(
-              spots: spots,
-              isCurved: false,
-              barWidth: 2,
-              color: Colors.blue,
-              dotData: FlDotData(show: true),
-            ),
-          ],
         ),
       ),
     );

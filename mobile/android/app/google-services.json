@@ -7,25 +7,6 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:534570489256:android:700fae34780acfe142f99d",
-        "android_client_info": {
-          "package_name": "Litecs2.app"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyCTvHbUrizO_qrYhtgpqCrcT6iDkexcFQY"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
         "mobilesdk_app_id": "1:534570489256:android:9d9810bb896897af42f99d",
         "android_client_info": {
           "package_name": "com.example.projetofinal3"

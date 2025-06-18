@@ -48,7 +48,7 @@ class SensorData(models.Model):
     categoria_original = models.CharField(max_length=100)  # Nome tal como está no CSV
     valor = models.FloatField()
     deviceid = models.CharField(max_length=100)
-    estado = models.SmallIntegerField ()
+    estado = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.timestamp} - {self.categoria_original} ({self.deviceid}): {self.valor}"

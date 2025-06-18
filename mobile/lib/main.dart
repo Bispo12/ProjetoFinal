@@ -10,44 +10,36 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'global.dart';
 import 'user_provider.dart';
 import 'register_screen.dart';
-import 'ForgotPasswordScreen.dart';
 import 'Homescreen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Easy‑Localization precisa disto antes de runApp
   await EasyLocalization.ensureInitialized();
 
-  // Firebase
   try {
     await Firebase.initializeApp();
-    // ignore: avoid_print
     print('Firebase inicializado com sucesso');
   } catch (e) {
-    // ignore: avoid_print
     print('Erro ao inicializar o Firebase: $e');
   }
+
+  final userProvider = UserProvider(nome: 'Amelinha', idioma: 'pt');
+  await userProvider.loadFromPrefs();
 
   runApp(
     EasyLocalization(
       supportedLocales: const [Locale('pt'), Locale('es'), Locale('en')],
       path: 'i18n',
       fallbackLocale: const Locale('pt'),
-      child: ChangeNotifierProvider(
-        create:
-            (_) => UserProvider(
-              nome: 'Amelinha',
-              email: 'amelinha@exemplo.com',
-              idioma: 'pt',
-            ),
+      child: ChangeNotifierProvider.value(
+        value: userProvider,
         child: const MyApp(),
       ),
     ),
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -65,7 +57,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -94,7 +85,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final fcmToken = await FirebaseMessaging.instance.getToken();
-      // ignore: avoid_print
       print('FCM Token: $fcmToken');
 
       final response = await http.post(
@@ -112,7 +102,6 @@ class _LoginScreenState extends State<LoginScreen> {
         if (data.containsKey('access')) {
           final String accessToken = data['access'];
 
-          // Opcional: guardar token no provider
           try {
             context.read<UserProvider>().update(
               idioma: context.locale.languageCode,
@@ -156,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Litecs Login',
+                'login.titulo'.tr(),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -166,18 +155,18 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 20),
               TextField(
                 controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'login.utilizador'.tr(),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'login.senha'.tr(),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 20),
@@ -189,24 +178,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       backgroundColor: Colors.green.shade700,
                       padding: const EdgeInsets.symmetric(horizontal: 40),
                     ),
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(color: Colors.white),
+                    child: Text(
+                      'login.entrar'.tr(),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
               const SizedBox(height: 15),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => ForgotPasswordScreen()),
-                  );
-                },
-                child: Text(
-                  'Esqueceu-se da password?',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-              ),
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -215,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
                 },
                 child: Text(
-                  'Criar uma conta',
+                  'login.criarConta'.tr(),
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ),

@@ -53,10 +53,12 @@ class _DefinicoesScreenState extends State<DefinicoesScreen> {
 
     _idiomaSelecionado = prefs.getString('idioma') ?? _idiomaSelecionado;
     _nomeController.text = prefs.getString('nome') ?? 'Amelinha';
-    _emailController.text = prefs.getString('email') ?? 'amelinha@exemplo.com';
 
     final fotoPath = prefs.getString('foto');
     if (fotoPath != null) _imagem = File(fotoPath);
+
+    // ATUALIZA O LOCAL DA APP ANTES DE MOSTRAR A UI
+    await context.setLocale(Locale(_idiomaSelecionado));
 
     if (mounted) setState(() => _loading = false);
   }
@@ -64,7 +66,6 @@ class _DefinicoesScreenState extends State<DefinicoesScreen> {
   Future<void> _guardarLocal() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('nome', _nomeController.text);
-    await prefs.setString('email', _emailController.text);
     await prefs.setString('idioma', _idiomaSelecionado);
     if (_imagem != null) await prefs.setString('foto', _imagem!.path);
   }
@@ -84,7 +85,6 @@ class _DefinicoesScreenState extends State<DefinicoesScreen> {
         body: jsonEncode({
           'idioma': _idiomaSelecionado,
           'nome': _nomeController.text,
-          'email': _emailController.text,
           'foto':
               _imagem != null ? base64Encode(_imagem!.readAsBytesSync()) : null,
         }),
@@ -180,18 +180,7 @@ class _DefinicoesScreenState extends State<DefinicoesScreen> {
                       } catch (_) {}
                     },
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: 'definicoes.email'.tr(),
-                    ),
-                    onChanged: (value) {
-                      try {
-                        context.read<UserProvider>().update(email: value);
-                      } catch (_) {}
-                    },
-                  ),
+
                   const SizedBox(height: 20),
                   DropdownButtonFormField<String>(
                     value: _idiomaSelecionado,
