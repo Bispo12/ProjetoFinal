@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'global.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificacoesScreen extends StatefulWidget {
   final String accessToken;
@@ -19,11 +20,13 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
   List<Map<String, dynamic>> _notificacoes = [];
   List<Map<String, dynamic>> _alertas = [];
   List<String> _temasDosCsv = [];
+  final _prefsKeyAlertas = 'alertas_personalizados';
 
   @override
   void initState() {
     super.initState();
     _carregarTemasParaAlertas();
+    _carregarAlertasGuardados();
     Timer.periodic(
       Duration(seconds: 10),
       (timer) => _verificarAlertasSimulados(),
@@ -41,6 +44,20 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
       final List<dynamic> categorias = jsonDecode(response.body);
       setState(() {
         _temasDosCsv = categorias.map((e) => e.toString()).toList();
+      });
+    }
+  }
+
+  Future<void> _carregarAlertasGuardados() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString(_prefsKeyAlertas);
+    if (jsonStr != null) {
+      final List<dynamic> lista = jsonDecode(jsonStr);
+      setState(() {
+        _alertas =
+            lista
+                .map((item) => Map<String, dynamic>.from(item as Map))
+                .toList();
       });
     }
   }
@@ -128,7 +145,7 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
             ),
             ElevatedButton(
               child: Text('Guardar'),
-              onPressed: () {
+              onPressed: () async {
                 setState(() {
                   _alertas.add({
                     'parametro': parametro,
@@ -136,6 +153,11 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
                     'direcao': direcao,
                   });
                 });
+
+                // Guardar os alertas no SharedPreferences
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString(_prefsKeyAlertas, jsonEncode(_alertas));
+
                 Navigator.pop(context);
               },
             ),
