@@ -10,7 +10,6 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
@@ -27,7 +26,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'username': _usernameController.text,
-        'email': _emailController.text,
         'password': _passwordController.text,
       }),
     );
@@ -55,10 +53,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             TextField(
               controller: _usernameController,
               decoration: InputDecoration(labelText: 'Username'),
-            ),
-            TextField(
-              controller: _emailController,
-              decoration: InputDecoration(labelText: 'Email'),
             ),
             TextField(
               controller: _passwordController,
