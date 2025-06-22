@@ -224,10 +224,32 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
                     '🔔 Alertas Personalizados:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  ..._alertas.map(
-                    (a) => Text(
-                      '• ${a['parametro']} ${a['direcao']} de ${a['valor']}',
-                    ),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: _alertas.length,
+                    itemBuilder: (context, index) {
+                      final alerta = _alertas[index];
+                      return ListTile(
+                        title: Text(
+                          '• ${alerta['parametro']} ${alerta['direcao']} de ${alerta['valor']}',
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete, color: Colors.red),
+                          onPressed: () async {
+                            setState(() {
+                              _alertas.removeAt(index);
+                            });
+                            // Atualizar SharedPreferences
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setString(
+                              _prefsKeyAlertas,
+                              jsonEncode(_alertas),
+                            );
+                          },
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
